@@ -1,0 +1,10 @@
+{
+  "name": "operation-glasshouse",
+  "private": true,
+  "type": "module",
+  "description": "A live heist story game on the Gemini audio stack. Browser prototype, no build step.",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "check": "node --check js/config.js && node --check js/audio.js && node --check js/live.js && node --check js/vision.js && node --check js/characters.js && node --check js/judge.js && node --check js/map.js && node --check js/scene.js && node --check js/ui.js && node --check js/game.js && node --check js/main.js"
+  }
+}

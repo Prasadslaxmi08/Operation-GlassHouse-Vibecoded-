@@ -1,0 +1,216 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Operation Glasshouse</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ============ START SCREEN ============ -->
+<section id="start" class="screen active">
+  <div class="start-bg"></div>
+  <div class="start-wrap">
+    <header class="title-block">
+      <div class="eyebrow">Google DeepMind Hyderabad Hackathon · Voice &amp; Real-Time Audio</div>
+      <h1>OPERATION<br/><span>GLASSHOUSE</span></h1>
+      <p class="tag">Everyone has a story.<br/>Make sure yours holds.</p><p class="tag" style="font-size:13px;font-family:var(--font-mono);color:#b9c9bf">A social-stealth game in twelve floors. Walk in as nobody. Talk your way out as someone else. No script, no dialogue tree: they hear your voice, see your face, and decide whether to believe you.</p>
+    </header>
+
+    <div class="start-grid">
+      <div class="card rules">
+        <h2>Briefing &amp; Rules</h2>
+        <ol>
+          <li><b>The job.</b> You are inside Meridian Tower. Get a keycard issued under a fake name and collect it from the floor 2 desk before <b>6:00 PM</b>. You start at 9:00 AM.</li>
+          <li><b>You talk, out loud.</b> Walk up to a person and speak into the laptop mic. They answer through the speaker. No typing, no menus. What you say is the game.</li>
+          <li><b>Conversations cost time.</b> Every conversation burns 15 to 40 game minutes. Hesitation burns real seconds, and people notice.</li>
+          <li><b>They listen.</b> Pauses, filler words, over-politeness, and pressure raise a person's <b>suspicion</b>. Contradicting something you said earlier raises it more.</li>
+          <li><b>They watch.</b> You are standing in front of them, and your camera is your face. Looking away, a furrowed brow, a pressed lip, a badly timed smile: all tells. Camera off means they squint at you and start warier.</li>
+          <li><b>They talk to each other.</b> Between conversations, staff gossip. A story you told the receptionist may reach IT before you do. Use it or get caught by it.</li>
+          <li><b>They can walk away from you.</b> Push too hard and a person cuts you off mid-sentence. Push too far and your phone rings: <b>Meera</b>, the Security Lead. That is the only phone call in the game, and you get one chance.</li>
+          <li><b>The map reveals itself.</b> Every place you visit and every fact you extract lights up a room in the tower. Let people talk.</li>
+          <li><b>Endings.</b> Clean, Flagged, Burned, Clock-out, and one secret ending. Your Mission Report replays the exact moment you gave yourself away.</li>
+        </ol>
+        <div class="tip">Tip: say who you are before they ask. Never change your story. Look at the camera like you'd look at a person.</div>
+      </div>
+
+      <div class="card setup">
+        <h2>Setup</h2>
+        <label>Gemini API key
+          <input id="apiKey" type="password" placeholder="AIza..." autocomplete="off" />
+        </label>
+        <div class="row">
+          <label>Live model <input id="liveModel" type="text" /></label>
+          <label>Flash model <input id="flashModel" type="text" /></label>
+        </div>
+        <div class="row">
+          <label class="check"><input id="camOn" type="checkbox" checked /> Camera on (people see your face while you talk)</label>
+        </div>
+        <div class="row">
+          <label class="check"><input id="previewMode" type="checkbox" /> Preview mode (no API key, scripted demo call)</label>
+        </div>
+        <div id="startStatus" class="status">Ready.</div>
+        <button id="startBtn" class="primary">Start mission ↗</button>
+        <div class="fine">Mic permission is required. Camera only if enabled. Frames and audio are streamed to Gemini during conversations and never stored.</div>
+      </div>
+    </div>
+
+    <footer class="stack">
+      <span>Gemini 3.8 Live</span><span>Gemini 3.8 Flash</span><span>Flash TTS</span><span>Transcribe</span><span>Live Translate</span><span>Nano Banana 2 Lite</span><span>Lyria 3.5</span><span>Omni Flash</span><span>MediaPipe</span><span>Firebase</span>
+    </footer>
+  </div>
+</section>
+
+<!-- ============ MISSION SCREEN ============ -->
+<section id="mission" class="screen">
+  <header class="hud">
+    <div class="hud-left">
+      <div class="clock"><span id="clock">09:00</span><small>AM</small></div>
+      <div class="dayline"><div id="dayFill"></div></div>
+    </div>
+    <div class="hud-mid">
+      <div class="objective" id="objective">Objective: get a keycard issued under a fake name, collect it from the lobby desk by 6 PM.</div>
+    </div>
+    <div class="hud-right">
+      <div class="chip" id="ratingChip">Ghost · Unrated</div>
+      <button id="objBtn" class="ghostbtn">Objectives <small>Tab</small></button>
+      <button id="abortBtn" class="ghostbtn">Abort</button>
+    </div>
+  </header>
+
+  <main class="layout solo">
+    <!-- hidden data panels: still rendered by the JS, not shown -->
+    <aside class="panel obj-panel hidden">
+      <div id="objectives" class="objectives"></div>
+      <div id="map" class="hidden"></div>
+      <span id="mapCount"></span>
+    </aside>
+
+    <!-- 3D THIRD-PERSON WORLD + HUD -->
+    <section class="scene-wrap">
+      <div id="world" class="world">
+        <canvas id="gl"></canvas>
+        <div id="hud" class="hud3d">
+          <div class="loc-label" id="locLabel">Meridian Tower · Lobby</div>
+          <div class="walk-status" id="walkStatus">Ground · Lobby</div>
+          <div id="hudObj" class="hud-obj hidden">
+            <div class="hud-obj-title">OBJECTIVES <small>Tab to close</small></div>
+            <div id="hudObjList"></div>
+            <div class="keys">Walk: <b>W</b><b>A</b><b>S</b><b>D</b> · Zoom: mouse wheel · Lift: <b>W</b>/<b>S</b> inside it · Talk: <b>E</b> · or click a tile, a room, or a person</div>
+          </div>
+          <div id="hudLog" class="hud-log"></div>
+          <div id="inventory" class="inventory hidden"><div class="inv-title">YOU ARE CARRYING</div><div id="invList"></div></div>
+          <aside id="cover" class="cover">
+            <h3>Your cover</h3>
+            <div class="cover-card">
+              <div class="cover-avatar" id="coverAvatar"></div>
+              <div><small>MERIDIAN / VISITOR</small><b id="coverName">Name unknown</b><span id="coverCo">No story on file</span></div>
+              <div class="stamp" id="coverStamp">UNVERIFIED</div>
+            </div>
+            <div class="cover-goal">Leave with a keycard.</div>
+            <ul class="checklist">
+              <li id="ck1"><i></i><div><b>Get on the visitor log</b><span>Priya · Reception · G</span></div></li>
+              <li id="ck2"><i></i><div><b>Secure an authorisation</b><span>Dev · IT · 4 &nbsp;/&nbsp; Anita · 11</span></div></li>
+              <li id="ck3"><i></i><div><b>Collect the keycard</b><span>Ramesh · Desk · 2</span></div></li>
+            </ul>
+            <div class="cover-note">The same name needs to appear on both pieces of paper.</div>
+            <div class="cover-brief"><small>FROM THE HANDLER</small><p id="coverBrief"></p><a id="listenBrief">Listen to the briefing</a></div>
+          </aside>
+          <div id="dialog" class="dialog hidden">
+            <div class="dlg-portrait" id="dlgPortrait"></div>
+            <div class="dlg-body">
+              <div class="dlg-head"><b id="dlgName">Priya</b><span id="dlgRole">Receptionist</span><em id="dlgSpeaking">● listening</em></div>
+              <div class="dlg-line" id="dlgLine">…</div>
+              <div class="dlg-sub" id="dlgSub"></div>
+              <div class="dlg-you" id="dlgYou"></div>
+              <div class="dlg-meter"><span>Character suspicion</span><div><i id="dlgMeterFill"></i></div><span id="dlgMeterWord">at ease</span></div>
+              <form class="dlg-input" id="dlgForm"><input id="dlgText" type="text" placeholder="Speak naturally, or type your reply…" autocomplete="off" /><button type="submit" class="primary">Send</button></form>
+              <div class="dlg-links"><a id="dlgMute">Mute microphone</a><a id="dlgPass" class="hidden">Show visitor pass</a><a id="dlgLeave">Leave conversation</a><small>Fictional story interpretation, not a lie detector.</small></div>
+            </div>
+          </div>
+          <div class="hud-controls">
+            <button id="hangupBtn" class="danger" disabled>Walk away</button>
+            <button id="muteBtn" class="ghostbtn" disabled>Mute</button>
+            <button id="showPassBtn" class="ghostbtn hidden">Show visitor pass</button>
+            <button id="doubleCrossBtn" class="secret hidden">Call Meera. Sell out the Handler.</button>
+            <div class="hint" id="hint">Walk to someone and press E, or click them.</div>
+          </div>
+          <div id="labels" class="labels"></div>
+          <div id="promptHud" class="prompt-hud hidden">E · talk</div>
+          <div id="monitorCall" class="contact-card hidden">
+            <div class="ring" id="ring"><div class="avatar" id="avatar">P</div></div>
+            <div class="who"><b id="whoName">Priya</b><span id="whoRole">Reception</span></div>
+            <div class="susp"><div id="suspFill"></div></div>
+            <div class="state" id="whoState">cooperative</div>
+          </div>
+          <div class="notes-hud"><div class="cork-title">YOUR STORY SO FAR</div><div id="notes" class="notes"></div></div>
+          <div class="phone-hud" id="phone"><span id="phoneLabel">no calls</span><small id="phoneSub"></small></div>
+          <div class="pip hidden" id="pip">
+            <video id="cam" autoplay muted playsinline></video>
+            <div class="pip-label">YOU · LIVE</div>
+            <div class="tells" id="tells"></div>
+          </div>
+          <div class="captions" id="captions"></div>
+          <div class="subtitle" id="subtitle"></div>
+          <div class="miclevel"><div id="micFill"></div></div>
+          <canvas id="minimap" class="minimap" width="180" height="180"></canvas>
+          <div id="vignette" class="vignette calm"></div>
+          <div id="fade" class="fade"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- hidden data panels: still rendered by the JS, not shown -->
+    <aside class="panel right-panel hidden">
+      <div id="contacts" class="contacts"></div>
+      <div id="feed" class="feed"></div>
+    </aside>
+  </main>
+</section>
+
+<!-- ============ REPORT SCREEN ============ -->
+<section id="report" class="screen">
+  <div class="report-wrap">
+    <div class="report-head">
+      <div class="eyebrow">MISSION REPORT · CASE FILE</div>
+      <h1 id="endingTitle">BURNED</h1>
+      <p id="endingLine"></p>
+      <div class="chip big" id="finalRating">Ghost · Amateur</div>
+    </div>
+    <div class="report-grid">
+      <div class="card"><h3>Where you went</h3><ol id="rTimeline"></ol></div>
+      <div class="card"><h3>Where they stopped believing you</h3><div id="rTells"></div></div>
+      <div class="card"><h3>Your lies, and who heard them</h3><ul id="rLedger"></ul></div>
+      <div class="card"><h3>Gossip trail</h3><ul id="rGossip"></ul></div>
+      <div class="card"><h3>Suspicion curves</h3><div id="rCurves"></div></div>
+      <div class="card"><h3>Map</h3><div id="rMap" class="map small"></div></div>
+    </div>
+    <div class="report-actions">
+      <button id="againBtn" class="primary">Run it again</button>
+      <button id="copyReportBtn" class="ghostbtn">Copy report as text</button>
+    </div>
+  </div>
+</section>
+
+<!-- Incoming call overlay -->
+<div id="incoming" class="overlay hidden">
+  <div class="incoming-card">
+    <div class="eyebrow">INCOMING CALL</div>
+    <h2>Meera · Security Lead</h2>
+    <p>Your phone. She got the number from the visitor form. You have one chance.</p>
+    <button id="answerBtn" class="primary">Answer</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
+
+
+
